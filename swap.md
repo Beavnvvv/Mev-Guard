@@ -1,3 +1,4 @@
+### Pair
 ```
     function swap(uint256 amount0Out, uint256 amount1Out, address to, address referrer, bytes calldata data, bool antiMEV) external nonReentrant returns (bool) {
         require(amount0Out > 0 || amount1Out > 0, InsufficientOutputAmount());
@@ -73,7 +74,7 @@
         return true;
     }
 ```
-
+### Factory
 ```
         function createPair(address tokenA, address tokenB) external override returns (address pair) {
             require(tokenA != tokenB, IdenticalAddresses());
@@ -93,5 +94,27 @@
     
             emit PairCreated(token0, token1, pair, allPairs.length);
         }
+```
+### Router
+```
+    function _swap(
+        uint256[] memory amounts, 
+        address[] memory path, 
+        uint256[] memory feeRates, 
+        address originTo, 
+        address referrer,
+        bool antiMEV
+    ) internal returns (bool) {
+        IMEVGuard(MEV_GUARD).setOriginTo(originTo);
+        for (uint256 i; i < path.length - 1; i++) {
+            (address input, address output) = (path[i], path[i + 1]);
+            (address token0,) = OutrunAMMLibrary.sortTokens(input, output);
+            uint256 amountOut = amounts[i + 1];
+            (uint256 amount0Out, uint256 amount1Out) = input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
+            address to = i < path.length - 2 ? OutrunAMMLibrary.pairFor(factories[feeRates[i + 1]], output, path[i + 2], feeRates[i + 1]) : originTo;
+            if (!IOutrunAMMPair(OutrunAMMLibrary.pairFor(factories[feeRates[i]], input, output, feeRates[i])).swap(amount0Out, amount1Out, to, referrer, new bytes(0), antiMEV)) return false;
+        }
+        return true;
+    }
 ```
 
