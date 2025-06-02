@@ -74,4 +74,24 @@
     }
 ```
 
+```
+        function createPair(address tokenA, address tokenB) external override returns (address pair) {
+            require(tokenA != tokenB, IdenticalAddresses());
+    
+            (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+            require(token0 != address(0), ZeroAddress());
+            require(getPair[token0][token1] == address(0), PairExists()); // single check is sufficient
+    
+            bytes32 salt = keccak256(abi.encodePacked(token0, token1, swapFeeRate));
+            pair = Clones.cloneDeterministic(pairImplementation, salt);
+            IOutrunAMMPair(pair).initialize(token0, token1, MEVGuard, swapFeeRate);
+            IMEVGuard(MEVGuard).setAntiFrontDefendBlockEdge(pair, block.number);
+            
+            getPair[token0][token1] = pair;
+            getPair[token1][token0] = pair; // populate mapping in the reverse direction
+            allPairs.push(pair);
+    
+            emit PairCreated(token0, token1, pair, allPairs.length);
+        }
+```
 
